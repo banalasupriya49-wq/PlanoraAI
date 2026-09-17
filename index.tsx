@@ -1711,31 +1711,29 @@ function AIChatScreen({ profile, setProfile, lang }) {
     setLoading(true);
 
     try {
-      const apiKey = "";
-      const systemInstruction = `You are Planora AI, a friendly, accurate student career counselor.
-Context:
-Student Name: ${profile.name}
-Technical Skills: ${profile.techSkills.join(', ')}
-Interests: ${profile.interests.join(', ')}
-Selected Career Goal: ${profile.selectedCareerId}
-Skill Level: ${profile.skillLevel}
-Language: ${lang}`;
-
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-      const payload = {
-        contents: [{ parts: [{ text: queryText }] }],
-        systemInstruction: { parts: [{ text: systemInstruction }] }
-      };
-
-      const response = await fetch(apiUrl, {
+      // The Gemini call runs server-side in netlify/functions/chat.mts so no API key
+      // is ever shipped to the browser.
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          message: queryText,
+          language: lang,
+          profile: {
+            name: profile.name,
+            techSkills: profile.techSkills,
+            softSkills: profile.softSkills,
+            interests: profile.interests,
+            selectedCareerId: profile.selectedCareerId,
+            skillLevel: profile.skillLevel,
+            goals: profile.goals
+          }
+        })
       });
 
-      const data = await response.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || getFallbackReply(queryText, profile);
-      
+      const data = await response.json().catch(() => ({}));
+      const reply = (response.ok && data.reply) ? data.reply : getFallbackReply(queryText, profile);
+
       setMessages([...newMessages, { sender: 'ai', text: reply }]);
     } catch (err) {
       setMessages([...newMessages, { sender: 'ai', text: getFallbackReply(queryText, profile) }]);
